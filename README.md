@@ -82,8 +82,51 @@ npm pack
 ```
 
 The tarball contains JavaScript and TypeScript declarations. Install that
-tarball in a consuming project alongside `testcontainers@^12.2.1`. This project
-does not yet publish the npm package automatically.
+tarball in a consuming project alongside `testcontainers@^12.2.1`.
+
+### Publishing to npm
+
+The package workflow builds, tests and checks the package contents on pull
+requests and pushes to `main`. After those checks pass on `main`, Changesets
+opens or updates a release pull request with version and changelog updates.
+Merging that pull request publishes the new version to the public npm registry.
+If the current version has never been published, a run on `main` with no pending
+changesets can publish it directly.
+
+For each package change, run `npm run changeset`, choose the version bump, and
+commit the generated file alongside the change. `npm run release` builds and
+publishes unpublished versions; it is normally run by CI.
+
+### Snapshot Releases
+
+Run `npm run changeset`, then commit and push the generated changeset with your
+code. The snapshot workflow fails if no changeset file is present.
+
+In GitHub Actions, select **Publish npm snapshot**, choose **Run workflow**, and
+select the branch to publish. Pull requests run snapshot validation, but only
+manual runs publish. The workflow must exist on the default branch before GitHub
+shows the **Run workflow** button.
+
+Configure an npm trusted publisher for `guardian/end-to-end-testing` with the
+workflow filename `publish-snapshot.yml` and permission to publish directly with
+`npm publish`. This is separate from the trusted publisher for `ci.yml`; no npm
+token secret is required.
+
+The workflow uses the committed changeset to version the package with a unique
+snapshot label containing the run ID and attempt, then builds and tests it.
+Manual runs publish under the `snapshot-<run-id>-<run-attempt>` npm tag. It does
+not commit version changes, create Git tags, or update npm's `latest` tag. The
+committed changeset remains available for the normal release. For example, run
+`123456789`, attempt `1`:
+
+```sh
+npm install end-to-end-testing@snapshot-123456789-1
+```
+
+The workflow summary includes an install command using that run's tag. Each run
+and retry uses a different tag, so later snapshots do not move earlier tags.
+
+### Usage
 
 ```typescript
 import { ApplicationContainer } from "end-to-end-testing";

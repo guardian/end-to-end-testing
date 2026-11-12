@@ -1,0 +1,51 @@
+name: Publish npm snapshot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-npm-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .tool-versions
+
+      - run: npm ci
+
+      - name: Check for a changeset
+        run: |
+          for changeset_file in .changeset/*.md; do
+            if [[ -f "$changeset_file" && "$changeset_file" != ".changeset/README.md" ]]; then
+              exit 0
+            fi
+          done
+          echo '::error::No changeset found. Run npm run changeset, then commit and push the generated file.'
+          exit 1
+
+      - name: Version snapshot
+        run: npm run changeset -- version --snapshot "snapshot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+      - run: npm test
+      - run: npm run build
+
+      - name: Publish snapshot
+        run: npm run changeset -- publish --tag "snapshot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --no-git-tag
+
+      - name: Report snapshot version
+        run: |
+          echo "Install this snapshot with \`npm install end-to-end-testing@snapshot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\`" >> "$GITHUB_STEP_SUMMARY"

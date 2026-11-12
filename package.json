@@ -5,25 +5,32 @@
   "type": "commonjs",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "repository": {
+    "url": "git+https://github.com/guardian/end-to-end-testing.git"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=22.22"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test test/*.test.cjs",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "changeset": "npx changeset"
   },
   "peerDependencies": {
     "testcontainers": "^12.2.1"
   },
   "devDependencies": {
+    "@changesets/cli": "^3.0.3",
     "@types/node": "^22.0.0",
     "testcontainers": "^12.2.1",
     "typescript": "~5.9.3"

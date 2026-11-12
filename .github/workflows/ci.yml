@@ -1,0 +1,54 @@
+name: Build, test and publish npm package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .tool-versions
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .tool-versions
+          cache: npm
+
+      - run: npm ci
+      
+      - name: Create release pull request or publish to npm
+        uses: changesets/action@8eb63fb4cfc7f9643537c7d39d0b68c835012a19
+        with:
+          publish: npx changeset publish
+          title: "🦋 Release package updates"
+          commit: "Bump package version"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
