@@ -100,17 +100,18 @@ publishes unpublished versions; it is normally run by CI.
 ### Snapshot Releases
 
 Run `npm run changeset`, then commit and push the generated changeset with your
-code. The snapshot workflow fails if no changeset file is present.
+code. The snapshot job fails if no changeset file is present.
 
-In GitHub Actions, select **Publish npm snapshot**, choose **Run workflow**, and
-select the branch to publish. Pull requests run snapshot validation, but only
-manual runs publish. The workflow must exist on the default branch before GitHub
-shows the **Run workflow** button.
+In GitHub Actions, select **Build, test and publish npm package**, choose **Run
+workflow**, and select a branch other than `main`. The snapshot job only runs
+for manual triggers on non-`main` branches, after the test job passes. Pull
+requests run the normal CI tests without publishing. Manual runs on `main` do
+not publish. The workflow must exist on the default branch before GitHub shows
+the **Run workflow** button.
 
 Configure an npm trusted publisher for `guardian/end-to-end-testing` with the
-workflow filename `publish-snapshot.yml` and permission to publish directly with
-`npm publish`. This is separate from the trusted publisher for `ci.yml`; no npm
-token secret is required.
+workflow filename `ci.yml` and permission to publish directly with `npm publish`.
+This is shared with normal releases; no npm token secret is required.
 
 The workflow uses the committed changeset to version the package with a unique
 snapshot label containing the run ID and attempt, then builds and tests it.
@@ -120,7 +121,7 @@ committed changeset remains available for the normal release. For example, run
 `123456789`, attempt `1`:
 
 ```sh
-npm install end-to-end-testing@snapshot-123456789-1
+npm install @guardian/end-to-end-testing@snapshot-123456789-1
 ```
 
 The workflow summary includes an install command using that run's tag. Each run

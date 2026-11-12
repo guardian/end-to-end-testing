@@ -1,12 +1,12 @@
 {
-  "name": "end-to-end-testing",
+  "name": "@guardian/end-to-end-testing",
   "version": "0.1.0",
   "description": "Shared Docker images and Testcontainers building blocks for end-to-end stacks.",
   "type": "commonjs",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "repository": {
-    "url": "git+https://github.com/guardian/end-to-end-testing.git"
+    "url": "https://github.com/guardian/end-to-end-testing"
   },
   "exports": {
     ".": {
