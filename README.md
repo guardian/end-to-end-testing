@@ -22,9 +22,46 @@ ghcr.io/guardian/end-to-end-testing/application:v0.1.0
 only for corresponding Git tags. Pin a SHA tag or digest in consuming projects.
 
 Publishing uses `GITHUB_TOKEN` with `packages: write`. Enable Actions and package
-creation for the repository. GHCR packages may initially be private: make
-the package public for unauthenticated pulls, or authenticate consumers with
-`docker login ghcr.io` and credentials permitted to read that package.
+creation for the repository. GHCR packages are private by default on first
+publication.
+
+### Sharing Within the Organisation
+
+After the first publish, open the package under the `guardian` organisation
+on GitHub, then open **Package settings**. Under **Manage Actions access**, add
+each consuming repository with the **Read** role. Being in the same organisation
+does not automatically give another repository's `GITHUB_TOKEN` access.
+
+In each consuming repository's workflow, grant `packages: read` and log in before
+Docker or Testcontainers pulls the image:
+
+```yaml
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: docker pull ghcr.io/guardian/end-to-end-testing/application:latest
+```
+
+Replace `latest` with a published SHA tag or digest for reproducible tests, then
+run the repository's e2e suite after login. No shared personal access token is
+needed for these Actions workflows.
+
+For local development, users need read access to the package and can authenticate
+with `docker login ghcr.io` using a personal access token (classic) with
+`read:packages`, authorised for organisation SSO when required. Alternatively,
+make the package public to allow unauthenticated pulls; this also makes it
+available outside the organisation.
 
 ### Local Image Build
 
