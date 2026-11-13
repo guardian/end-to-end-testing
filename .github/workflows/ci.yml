@@ -1,0 +1,99 @@
+name: Build, test and publish npm package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .tool-versions
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .tool-versions
+          cache: npm
+
+      - run: npm ci
+      
+      - name: Create release pull request or publish to npm
+        uses: changesets/action@8eb63fb4cfc7f9643537c7d39d0b68c835012a19
+        with:
+          publish: npx changeset publish
+          title: "🦋 Release package updates"
+          commit: "Bump package version"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  snapshot:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      startsWith(github.ref, 'refs/heads/') &&
+      github.ref != 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .tool-versions
+
+      - run: npm ci
+
+      - name: Check for a changeset
+        run: |
+          for changeset_file in .changeset/*.md; do
+            if [[ -f "$changeset_file" && "$changeset_file" != ".changeset/README.md" ]]; then
+              exit 0
+            fi
+          done
+          echo '::error::No changeset found. Run npm run changeset, then commit and push the generated file.'
+          exit 1
+
+      - name: Version snapshot
+        run: npm run changeset -- version --snapshot "snapshot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+      - run: npm test
+      - run: npm run build
+
+      - name: Publish snapshot
+        run: npm run changeset -- publish --tag "snapshot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --no-git-tag
+
+      - name: Report snapshot version
+        run: |
+          echo "Install this snapshot with \`npm install @guardian/end-to-end-testing@snapshot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\`" >> "$GITHUB_STEP_SUMMARY"
