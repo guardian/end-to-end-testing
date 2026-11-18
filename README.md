@@ -8,7 +8,7 @@ is a base image for running an application under test in an end-to-end stack:
 Ubuntu with build essentials and [mise](https://mise.jdx.dev/) for installing
 the application's toolchain. It contains no application code.
 
-CI tests the TypeScript package and builds the image for `linux/amd64` and
+CI builds the TypeScript package and builds the image for `linux/amd64` and
 `linux/arm64`. Pull requests build without publishing. Pushes to `main`, version
 tags, and manual runs publish to:
 
@@ -77,7 +77,7 @@ Requires Node.js 22.22 or newer. From the repository root:
 
 ```sh
 npm ci
-npm test
+npm run build
 npm pack
 ```
 
@@ -86,7 +86,7 @@ tarball in a consuming project alongside `testcontainers@^12.2.1`.
 
 ### Publishing to npm
 
-The package workflow builds, tests and checks the package contents on pull
+The package workflow builds the package on pull
 requests and pushes to `main`. After those checks pass on `main`, Changesets
 opens or updates a release pull request with version and changelog updates.
 Merging that pull request publishes the new version to the public npm registry.
@@ -102,10 +102,10 @@ publishes unpublished versions; it is normally run by CI.
 Run `npm run changeset`, then commit and push the generated changeset with your
 code. The snapshot job fails if no changeset file is present.
 
-In GitHub Actions, select **Build, test and publish npm package**, choose **Run
+In GitHub Actions, select **Build and publish npm package**, choose **Run
 workflow**, and select a branch other than `main`. The snapshot job only runs
-for manual triggers on non-`main` branches, after the test job passes. Pull
-requests run the normal CI tests without publishing. Manual runs on `main` do
+for manual triggers on non-`main` branches, after the build passes. Pull
+requests run the normal CI build without publishing. Manual runs on `main` do
 not publish. The workflow must exist on the default branch before GitHub shows
 the **Run workflow** button.
 
@@ -114,7 +114,7 @@ workflow filename `ci.yml` and permission to publish directly with `npm publish`
 This is shared with normal releases; no npm token secret is required.
 
 The workflow uses the committed changeset to version the package with a unique
-snapshot label containing the run ID and attempt, then builds and tests it.
+snapshot label containing the run ID and attempt, then builds it.
 Manual runs publish under the `snapshot-<run-id>-<run-attempt>` npm tag. It does
 not commit version changes, create Git tags, or update npm's `latest` tag. The
 committed changeset remains available for the normal release. For example, run
@@ -135,10 +135,13 @@ import { Network } from "testcontainers";
 
 const network = await new Network().start();
 try {
-  const app = await new ApplicationContainer(
-    "ghcr.io/guardian/end-to-end-testing/application:sha-<full-commit>",
-    { port: 9000, healthCheckPath: "/healthcheck" },
-  )
+  const app = await new ApplicationContainer({
+    image: "ghcr.io/guardian/end-to-end-testing/application:sha-<full-commit>",
+    name: "app",
+    exposedPorts: [9000],
+    healthCheckPort: 9000,
+    healthCheckPath: "/healthcheck",
+  })
     .withNetwork(network)
     .withNetworkAliases("app")
     .withBindMounts([{ source: "/path/to/app", target: "/app" }])
@@ -161,8 +164,6 @@ along with any backing services the application needs on the network.
 
 `ApplicationContainer` extends `GenericContainer`, so network, environment,
 bind mounts, log consumers, and other Testcontainers options remain available.
-It pulls the specified image rather than building it, exposes the given port,
-and waits up to ten minutes for HTTP 200 from the given health-check path.
+It pulls the specified image rather than building it, exposes the given ports,
+and waits up to ten minutes for HTTP 200 from the given health-check path and port.
 
-Unit tests exercise configuration without Docker. They do not verify a running
-stack.
