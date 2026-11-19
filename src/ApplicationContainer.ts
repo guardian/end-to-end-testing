@@ -2,7 +2,7 @@ import { GenericContainer, Wait } from "testcontainers";
 import { createLogConsumer } from "./LogConsumer";
 
 export type ApplicationContainerOptions = {
-  image: string;
+  image?: string;
   name: string;
   exposedPorts: number[];
   healthCheckPort: number;
@@ -12,9 +12,12 @@ export type ApplicationContainerOptions = {
 
 export class ApplicationContainer extends GenericContainer {
   constructor(
-    { image, name, exposedPorts, healthCheckPort, healthCheckPath, streamLogs }: ApplicationContainerOptions,
+    {
+      image = `ghcr.io/guardian/end-to-end-testing/application:${process.env.APPLICATION_IMAGE_TAG}`,
+      name, exposedPorts, healthCheckPort, healthCheckPath, streamLogs,
+    }: ApplicationContainerOptions,
   ) {
-    if (!image.trim()) {
+    if (!image || !image.trim()) {
       throw new Error("A published application image reference is required");
     }
 

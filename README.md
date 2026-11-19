@@ -8,18 +8,18 @@ is a base image for running an application under test in an end-to-end stack:
 Ubuntu with build essentials and [mise](https://mise.jdx.dev/) for installing
 the application's toolchain. It contains no application code.
 
-CI builds the TypeScript package and builds the image for `linux/amd64` and
-`linux/arm64`. Pull requests build without publishing. Pushes to `main`, version
-tags, and manual runs publish to:
+On every push to `main`, CI tags the image `sha-<full-commit-id>` using the
+pushed commit. Other runs use `hash-<dockerfile-hash>`, derived
+from `hashFiles('container-images/application.Dockerfile')`. For either tag,
+CI skips publication if GHCR confirms it exists; otherwise it builds and pushes
+for `linux/amd64` and `linux/arm64`. Fork and Dependabot PRs do not publish.
 
-```text
-ghcr.io/guardian/end-to-end-testing/application:sha-<full-commit>
-ghcr.io/guardian/end-to-end-testing/application:latest
-ghcr.io/guardian/end-to-end-testing/application:v0.1.0
-```
-
-`latest` is only produced from the default branch; version tags are produced
-only for corresponding Git tags. Pin a SHA tag or digest in consuming projects.
+The image workflow returns the tag to CI, which passes it to package builds
+through `APPLICATION_IMAGE_TAG`. Vite embeds this value in the library bundle;
+consumers do not need to set it. Local builds without that variable use the
+same single-file calculation: SHA-256 of the Dockerfile's binary SHA-256 digest.
+The Dockerfile hash is not an image
+digest: rebuilding the same Dockerfile can pick up updated base images or tools.
 
 Publishing uses `GITHUB_TOKEN` with `packages: write`. Enable Actions and package
 creation for the repository. GHCR packages are private by default on first
@@ -50,10 +50,10 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - run: docker pull ghcr.io/guardian/end-to-end-testing/application:latest
+      - run: docker pull "ghcr.io/guardian/end-to-end-testing/application:${APPLICATION_IMAGE_TAG}"
 ```
 
-Replace `latest` with a published SHA tag or digest for reproducible tests, then
+Set `APPLICATION_IMAGE_TAG` to a published `sha-` or `hash-` tag, then
 run the repository's e2e suite after login. No shared personal access token is
 needed for these Actions workflows.
 
@@ -136,7 +136,6 @@ import { Network } from "testcontainers";
 const network = await new Network().start();
 try {
   const app = await new ApplicationContainer({
-    image: "ghcr.io/guardian/end-to-end-testing/application:sha-<full-commit>",
     name: "app",
     exposedPorts: [9000],
     healthCheckPort: 9000,
@@ -159,6 +158,8 @@ try {
 }
 ```
 
+Omit `image` to use the Dockerfile hash tag embedded in the installed package,
+or supply an explicit image reference to override it.
 The image has no application or start command, so the caller supplies them,
 along with any backing services the application needs on the network.
 
