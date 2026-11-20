@@ -22,46 +22,8 @@ The Dockerfile hash is not an image
 digest: rebuilding the same Dockerfile can pick up updated base images or tools.
 
 Publishing uses `GITHUB_TOKEN` with `packages: write`. Enable Actions and package
-creation for the repository. GHCR packages are private by default on first
-publication.
-
-### Sharing Within the Organisation
-
-After the first publish, open the package under the `guardian` organisation
-on GitHub, then open **Package settings**. Under **Manage Actions access**, add
-each consuming repository with the **Read** role. Being in the same organisation
-does not automatically give another repository's `GITHUB_TOKEN` access.
-
-In each consuming repository's workflow, grant `packages: read` and log in before
-Docker or Testcontainers pulls the image:
-
-```yaml
-permissions:
-  contents: read
-  packages: read
-
-jobs:
-  e2e:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - run: docker pull "ghcr.io/guardian/end-to-end-testing/application:${APPLICATION_IMAGE_TAG}"
-```
-
-Set `APPLICATION_IMAGE_TAG` to a published `sha-` or `hash-` tag, then
-run the repository's e2e suite after login. No shared personal access token is
-needed for these Actions workflows.
-
-For local development, users need read access to the package and can authenticate
-with `docker login ghcr.io` using a personal access token (classic) with
-`read:packages`, authorised for organisation SSO when required. Alternatively,
-make the package public to allow unauthenticated pulls; this also makes it
-available outside the organisation.
+creation for the repository. The published image is public, so Docker and
+Testcontainers can pull it without authentication both locally and in CI.
 
 ### Local Image Build
 
@@ -99,33 +61,21 @@ publishes unpublished versions; it is normally run by CI.
 
 ### Snapshot Releases
 
-Run `npm run changeset`, then commit and push the generated changeset with your
-code. The snapshot job fails if no changeset file is present.
+Run `npm run changeset` and commit the generated changeset to a pull request
+whose branch is in this repository. Add the `🐥 Canaries` label to the PR.
+After the image and build jobs succeed, CI publishes a snapshot under npm's
+`canary` tag without changing `latest`. Fork PRs and manual workflow runs do
+not publish snapshots.
 
-In GitHub Actions, select **Build and publish npm package**, choose **Run
-workflow**, and select a branch other than `main`. The snapshot job only runs
-for manual triggers on non-`main` branches, after the build passes. Pull
-requests run the normal CI build without publishing. Manual runs on `main` do
-not publish. The workflow must exist on the default branch before GitHub shows
-the **Run workflow** button.
-
-Configure an npm trusted publisher for `guardian/end-to-end-testing` with the
-workflow filename `ci.yml` and permission to publish directly with `npm publish`.
-This is shared with normal releases; no npm token secret is required.
-
-The workflow uses the committed changeset to version the package with a unique
-snapshot label containing the run ID and attempt, then builds it.
-Manual runs publish under the `snapshot-<run-id>-<run-attempt>` npm tag. It does
-not commit version changes, create Git tags, or update npm's `latest` tag. The
-committed changeset remains available for the normal release. For example, run
-`123456789`, attempt `1`:
+To install the most recently published canary:
 
 ```sh
-npm install @guardian/end-to-end-testing@snapshot-123456789-1
+npm install @guardian/end-to-end-testing@canary
 ```
 
-The workflow summary includes an install command using that run's tag. Each run
-and retry uses a different tag, so later snapshots do not move earlier tags.
+To test a specific PR snapshot, install the exact `package@version` from the
+workflow's PR comment. The `canary` tag can move when another PR publishes.
+After publishing, CI removes the label; reapply it to request another snapshot.
 
 ### Usage
 
