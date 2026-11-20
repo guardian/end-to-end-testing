@@ -30,7 +30,7 @@ jobs:
           tags: >-
             ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
                 && 'type=sha,format=long'
-                || format('type=raw,value=hash-{0}', hashFiles('container-images/application.Dockerfile')) }}
+                || format('type=raw,value=dev-{0}', hashFiles('container-images/application.Dockerfile')) }}
           flavor: latest=false
 
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
