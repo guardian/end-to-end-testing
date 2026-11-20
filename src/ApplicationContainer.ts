@@ -1,20 +1,18 @@
-import { GenericContainer, Wait } from "testcontainers";
-import { createLogConsumer } from "./LogConsumer";
+import { GenericContainer, PortWithOptionalBinding, Wait } from "testcontainers";
 
 export type ApplicationContainerOptions = {
   image?: string;
   name: string;
-  exposedPorts: number[];
+  exposedPorts: PortWithOptionalBinding[];
   healthCheckPort: number;
   healthCheckPath: string;
-  streamLogs?: boolean;
 };
 
 export class ApplicationContainer extends GenericContainer {
   constructor(
     {
       image = `ghcr.io/guardian/end-to-end-testing/application:${process.env.APPLICATION_IMAGE_TAG}`,
-      name, exposedPorts, healthCheckPort, healthCheckPath, streamLogs,
+      exposedPorts, healthCheckPort, healthCheckPath,
     }: ApplicationContainerOptions,
   ) {
     if (!image || !image.trim()) {
@@ -24,7 +22,6 @@ export class ApplicationContainer extends GenericContainer {
     super(image);
     this.withExposedPorts(...exposedPorts)
       // Allows for compiling the application on first start.
-      .withLogConsumer(createLogConsumer(name, !!streamLogs))
       .withStartupTimeout(10 * 60 * 1000)
       .withWaitStrategy(
         Wait.forHttp(healthCheckPath, healthCheckPort).forStatusCode(200),

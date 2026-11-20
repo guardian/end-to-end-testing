@@ -80,7 +80,7 @@ After publishing, CI removes the label; reapply it to request another snapshot.
 ### Usage
 
 ```typescript
-import { ApplicationContainer } from "end-to-end-testing";
+import { ApplicationContainer } from "@guardian/end-to-end-testing";
 import { Network } from "testcontainers";
 
 const network = await new Network().start();
