@@ -1,6 +1,6 @@
 {
   "name": "@guardian/end-to-end-testing",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Shared Docker images and Testcontainers building blocks for end-to-end stacks.",
   "type": "commonjs",
   "main": "./dist/index.js",
