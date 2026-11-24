@@ -8,18 +8,30 @@ is a base image for running an application under test in an end-to-end stack:
 Ubuntu with build essentials and [mise](https://mise.jdx.dev/) for installing
 the application's toolchain. It contains no application code.
 
+The project must have a `.tool-versions` file in its root directory. Use that
+directory as the container's working directory. For `ApplicationContainer`,
+set `projectContainerPath` to the project root inside the container.
+
+If the application needs the optional local CA in its JVM trust store, declare
+Java in `.tool-versions`. The entrypoint runs `mise install` before
+`mkcert -install`. If Java is not yet installed when `mkcert` runs, it may not
+add the CA to the JVM trust store.
+
+The image has no default command. Set `CMD` in a derived image, pass a command
+to `docker run`, or use `.withCommand([...])` on `ApplicationContainer`.
+
 On every push to `main`, CI tags the image `sha-<full-commit-id>` using the
-pushed commit. Other runs use `hash-<dockerfile-hash>`, derived
-from `hashFiles('container-images/application.Dockerfile')`. For either tag,
+pushed commit. Other runs use `dev-<image-input-hash>`, derived
+from the Dockerfile and entrypoint script. For either tag,
 CI skips publication if GHCR confirms it exists; otherwise it builds and pushes
 for `linux/amd64` and `linux/arm64`. Fork and Dependabot PRs do not publish.
 
 The image workflow returns the tag to CI, which passes it to package builds
 through `APPLICATION_IMAGE_TAG`. Vite embeds this value in the library bundle;
 consumers do not need to set it. Local builds without that variable use the
-same single-file calculation: SHA-256 of the Dockerfile's binary SHA-256 digest.
-The Dockerfile hash is not an image
-digest: rebuilding the same Dockerfile can pick up updated base images or tools.
+same calculation as GitHub Actions `hashFiles`: SHA-256 of the two binary
+file digests in filename order. This is not an image digest: rebuilding the
+same inputs can pick up updated base images or tools.
 
 Publishing uses `GITHUB_TOKEN` with `packages: write`. Enable Actions and package
 creation for the repository. The published image is public, so Docker and

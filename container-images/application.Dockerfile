@@ -8,11 +8,15 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    bash \
     git \
-    g++ \
     make \
     openssl \
+    mkcert \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl https://mise.run | sh
 ENV PATH="/root/.local/bin:/root/.local/share/mise/shims:${PATH}"
+
+COPY --chmod=755 application-entrypoint.sh /usr/local/bin/
+ENTRYPOINT ["/usr/local/bin/application-entrypoint.sh"]
