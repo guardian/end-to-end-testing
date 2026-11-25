@@ -102,11 +102,17 @@ try {
     exposedPorts: [9000],
     healthCheckPort: 9000,
     healthCheckPath: "/healthcheck",
+    projectHostPath: "/path/to/app",
+    projectContainerPath: "/app",
+    projectExcludePaths: ["/app/node_modules", "/app/target"],
+    caRootCertFile: "/path/to/rootCA.pem",
+    coursierCacheDir: "/path/to/cache/coursier",
+    ivyCacheDir: "/path/to/cache/ivy",
+    npmCacheDir: "/path/to/cache/npm",
+    aptCacheDir: "/path/to/cache/apt",
   })
     .withNetwork(network)
     .withNetworkAliases("app")
-    .withBindMounts([{ source: "/path/to/app", target: "/app" }])
-    .withWorkingDir("/app")
     .withCommand(["/app/start.sh"])
     .start();
 
@@ -120,13 +126,36 @@ try {
 }
 ```
 
-Omit `image` to use the Dockerfile hash tag embedded in the installed package,
+Omit `image` to use the image tag embedded in the installed package,
 or supply an explicit image reference to override it.
-The image has no application or start command, so the caller supplies them,
+The image has no start command, so the caller supplies one,
 along with any backing services the application needs on the network.
+
+| Option | Required | Description |
+| --- | --- | --- |
+| `image` | No | Image reference; defaults to the tag embedded in the package. |
+| `name` | Yes | Name of the application. |
+| `exposedPorts` | Yes | Ports to expose from the container. |
+| `healthCheckPort` | Yes | Port polled for readiness. |
+| `healthCheckPath` | Yes | HTTP path polled for readiness; must return 200. |
+| `projectHostPath` | Yes | Project root on the host, bind-mounted read-write. |
+| `projectContainerPath` | Yes | Mount target for the project root and the container's working directory. Must contain `.tool-versions`. |
+| `projectExcludePaths` | No | Absolute container paths masked with empty tmpfs mounts, so host build output (e.g. `node_modules`, `target`) is not shared with the container. |
+| `caRootCertFile` | No | Host path to a local CA `rootCA.pem`. It is copied into the container and installed with `mkcert -install` at startup. |
+| `coursierCacheDir` | No | Host directory bind-mounted at `/root/.cache/coursier/v1`. |
+| `ivyCacheDir` | No | Host directory bind-mounted at `/root/.ivy2/cache`. |
+| `npmCacheDir` | No | Host directory bind-mounted at `/root/.npm/_cacache`. |
+| `aptCacheDir` | No | Host directory bind-mounted at `/var/cache/apt/archives`. |
+
+The cache directories persist downloads between runs to speed up startup.
 
 `ApplicationContainer` extends `GenericContainer`, so network, environment,
 bind mounts, log consumers, and other Testcontainers options remain available.
-It pulls the specified image rather than building it, exposes the given ports,
-and waits up to ten minutes for HTTP 200 from the given health-check path and port.
+Bind mounts passed to `.withBindMounts()` are added alongside the project and
+cache mounts; as in Testcontainers, each call replaces the extra mounts from any
+previous call, so pass them all in one call.
+
+`ApplicationContainer` pulls the specified image rather than building it,
+exposes the given ports, and waits up to ten minutes for HTTP 200 from the
+given health-check path and port.
 
