@@ -20,7 +20,8 @@ export default defineConfig({
   define: { "process.env.APPLICATION_IMAGE_TAG": JSON.stringify(tag) },
   build: {
     target: "node22",
+    ssr: true,
     lib: { entry: "src/index.ts", formats: ["cjs"], fileName: () => "index.js" },
-    rolldownOptions: { platform: "node", external: ["testcontainers"] },
+    rolldownOptions: { external: ["testcontainers"] },
   },
 });

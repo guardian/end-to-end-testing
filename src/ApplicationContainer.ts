@@ -1,5 +1,6 @@
 import { GenericContainer, PortWithOptionalBinding, Wait } from "testcontainers";
 import { BindMount } from "testcontainers/build/types";
+import { posix } from "node:path";
 
 export type ApplicationContainerOptions = {
   image?: string;
@@ -62,7 +63,10 @@ export class ApplicationContainer extends GenericContainer {
       .withWorkingDir(projectContainerPath)
       .withBindMounts([])
       .withTmpFs(Object.fromEntries(
-          (projectExcludePaths ?? []).map((path) => [path, "rw,exec"])
+          (projectExcludePaths ?? []).map((path) => [
+            posix.resolve(projectContainerPath, path),
+            "rw,exec",
+          ])
         )
       )
       .withWaitStrategy(

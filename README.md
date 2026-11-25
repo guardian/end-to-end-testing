@@ -104,7 +104,7 @@ try {
     healthCheckPath: "/healthcheck",
     projectHostPath: "/path/to/app",
     projectContainerPath: "/app",
-    projectExcludePaths: ["/app/node_modules", "/app/target"],
+    projectExcludePaths: ["node_modules", "target"],
     caRootCertFile: "/path/to/rootCA.pem",
     coursierCacheDir: "/path/to/cache/coursier",
     ivyCacheDir: "/path/to/cache/ivy",
@@ -140,7 +140,7 @@ along with any backing services the application needs on the network.
 | `healthCheckPath` | Yes | HTTP path polled for readiness; must return 200. |
 | `projectHostPath` | Yes | Project root on the host, bind-mounted read-write. |
 | `projectContainerPath` | Yes | Mount target for the project root and the container's working directory. Must contain `.tool-versions`. |
-| `projectExcludePaths` | No | Absolute container paths masked with empty tmpfs mounts, so host build output (e.g. `node_modules`, `target`) is not shared with the container. |
+| `projectExcludePaths` | No | Container paths, either absolute or relative to `projectContainerPath`, masked with empty tmpfs mounts, so host build output (e.g. `node_modules`, `target`) is not shared with the container. |
 | `caRootCertFile` | No | Host path to a local CA `rootCA.pem`. It is copied into the container and installed with `mkcert -install` at startup. |
 | `coursierCacheDir` | No | Host directory bind-mounted at `/root/.cache/coursier/v1`. |
 | `ivyCacheDir` | No | Host directory bind-mounted at `/root/.ivy2/cache`. |
