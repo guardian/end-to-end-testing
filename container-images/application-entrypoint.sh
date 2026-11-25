@@ -3,12 +3,12 @@ set -euo pipefail
 
 if [[ -f .tool-versions ]]; then
   mise trust .tool-versions
-	mise install
+  mise install
   mise reshim
 fi
 
 if [[ -n ${CAROOT:-} && -f "$CAROOT/rootCA.pem" ]]; then
-	mkcert -install
+  mise exec -- mkcert -install
 fi
 
 if (( $# == 0 )); then
