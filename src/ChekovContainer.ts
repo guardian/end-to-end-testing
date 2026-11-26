@@ -1,20 +1,16 @@
-import { GenericContainer, Wait } from "testcontainers";
-import { BindMount } from "testcontainers/build/types";
+import { Wait } from "testcontainers";
 import { DEFAULT_CHEKOV_IMAGE } from "./BaseImages";
+import { EndToEndTestContainer, EndToEndTestContainerOptions } from "./EndToEndTestContainer";
 
-export type ChekovContainerOptions = {
-  image?: string;
-  name: string;
+export interface ChekovContainerOptions extends EndToEndTestContainerOptions {
   hostnames?: string[];
   baseDomain: string;
   mkcertRootCertDir: string;
   logsDir: string;
-};
+}
 
-export class ChekovContainer extends GenericContainer {
+export class ChekovContainer extends EndToEndTestContainer {
 
-  private bindMountedDirs: BindMount[] = [];
-  
   constructor({
     image = DEFAULT_CHEKOV_IMAGE,
     name,
@@ -23,13 +19,9 @@ export class ChekovContainer extends GenericContainer {
     mkcertRootCertDir,
     logsDir
   }: ChekovContainerOptions) {
-    if (!image || !image.trim()) {
-      throw new Error("A published application image reference is required");
-    }
-
-    super(image);
+    super({ image, name });
     const containerMkCertDir = "/etc/nginx/mkcert";
-    this.bindMountedDirs = [
+    this.withDefaultBindMounts([
         { source: "/var/run/docker.sock", target: "/var/run/docker.sock", mode: "ro" },
         {
             source: mkcertRootCertDir,
@@ -39,15 +31,13 @@ export class ChekovContainer extends GenericContainer {
         { source: logsDir, target: "/var/log/nginx", mode: "rw" },
         { source: logsDir, target: "/var/log/devcontainer-nginx", mode: "rw" },
         { source: logsDir, target: "/var/log/chekov", mode: "rw" },
-    ];
-    this.withName(name)
+    ]);
     if (hostnames && hostnames.length > 0) {
         this.withLabels({
             "chekov.aliases": hostnames.join(",")
         });
     }
     this.withExtraHosts([{ host: "host.docker.internal", ipAddress: "host-gateway" }])
-        .withBindMounts([])
         .withLabels({
             "chekov.aliases": hostnames?.join(",") ?? ""
         })
@@ -67,9 +57,5 @@ export class ChekovContainer extends GenericContainer {
         )
         .withWaitStrategy(Wait.forHealthCheck())
         .withStartupTimeout(2 * 60 * 1000)
-  }
-
-  public withBindMounts(bindMounts: BindMount[]): this {
-    return super.withBindMounts(bindMounts.concat(this.bindMountedDirs));
   }
 }

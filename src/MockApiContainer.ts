@@ -1,19 +1,15 @@
-import { GenericContainer, Wait } from "testcontainers";
-import { BindMount } from "testcontainers/build/types";
+import { Wait } from "testcontainers";
 import { DEFAULT_MOCK_API_IMAGE } from "./BaseImages";
+import { EndToEndTestContainer, EndToEndTestContainerOptions } from "./EndToEndTestContainer";
 
-export type MockApiContainerOptions = {
-  image?: string;
-  name: string;
+export interface MockApiContainerOptions extends EndToEndTestContainerOptions {
   fixtureDir: string;
   hostnames: string[];
   templating?: boolean;
-};
+}
 
-export class MockApiContainer extends GenericContainer {
+export class MockApiContainer extends EndToEndTestContainer {
 
-  private bindMountedDirs: BindMount[] = [];
-  
   constructor({
     image = DEFAULT_MOCK_API_IMAGE,
     name,
@@ -21,22 +17,19 @@ export class MockApiContainer extends GenericContainer {
     hostnames,
     templating
   }: MockApiContainerOptions) {
-    if (!image || !image.trim()) {
-      throw new Error("A published application image reference is required");
-    }
     if (hostnames.length === 0) {
       throw new Error("At least one hostname is required");
     }
 
     const containerWiremockConfigDir = "/wiremock-root";
     const containerPort = 80;
-    super(image);
+    super({ image, name });
 
-    this.bindMountedDirs = [{
+    this.withDefaultBindMounts([{
         source: fixtureDir,
         target: containerWiremockConfigDir,
         mode: "ro",
-    }];
+    }]);
 
     const command = [
         "--root-dir",
@@ -46,14 +39,12 @@ export class MockApiContainer extends GenericContainer {
         "--verbose",
         ...(templating ? ["--local-response-templating"] : []),
     ];
-    this.withName(name)
-        .withLabels({
+    this.withLabels({
             "devcontainer.hostname": hostnames[0],
             "devcontainer.application.port": String(containerPort),
             "chekov.aliases": hostnames.join(",")
         })
         .withUser("root")
-        .withBindMounts([])
         .withCommand(command)
         .withExposedPorts(containerPort)
         .withWaitStrategy(
@@ -62,9 +53,5 @@ export class MockApiContainer extends GenericContainer {
             ),
         )
         .withStartupTimeout(2 * 60 * 1000);
-  }
-
-  public withBindMounts(bindMounts: BindMount[]): this {
-    return super.withBindMounts(bindMounts.concat(this.bindMountedDirs));
   }
 }

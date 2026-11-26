@@ -1,14 +1,13 @@
-import { GenericContainer, Wait } from "testcontainers";
+import { Wait } from "testcontainers";
 import { DEFAULT_LOCAL_AWS_IMAGE } from "./BaseImages";
+import { EndToEndTestContainer, EndToEndTestContainerOptions } from "./EndToEndTestContainer";
 
-export type LocalAwsContainerOptions = {
-  image?: string;
-  name: string;
+export interface LocalAwsContainerOptions extends EndToEndTestContainerOptions {
   hostname: string;
   containerPort: number;
-};
+}
 
-export class LocalAwsContainer extends GenericContainer {
+export class LocalAwsContainer extends EndToEndTestContainer {
 
   constructor({
     image = DEFAULT_LOCAL_AWS_IMAGE,
@@ -16,16 +15,12 @@ export class LocalAwsContainer extends GenericContainer {
     hostname,
     containerPort
   }: LocalAwsContainerOptions) {
-    if (!image || !image.trim()) {
-      throw new Error("A published application image reference is required");
-    }
     if (!hostname || !hostname.trim()) {
       throw new Error("A hostname is required");
     }
 
-    super(image);
-    this.withName(name)
-      .withLabels({
+    super({ image, name });
+    this.withLabels({
           "devcontainer.hostname": hostname,
           "devcontainer.application.port": String(containerPort),
           "chekov.aliases": `${hostname}, s3.${hostname}, *.s3.${hostname}`
