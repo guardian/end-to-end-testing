@@ -1,11 +1,13 @@
-import { GenericContainer, PortWithOptionalBinding, Wait } from "testcontainers";
+import { GenericContainer, PortWithOptionalBinding, getContainerPort, Wait } from "testcontainers";
 import { BindMount } from "testcontainers/build/types";
 import { posix } from "node:path";
+
+export type ExposedPortWithHostNames = { port: PortWithOptionalBinding; hostNames?: string[] };
 
 export type ApplicationContainerOptions = {
   image?: string;
   name: string;
-  exposedPorts: PortWithOptionalBinding[];
+  exposedPorts: ExposedPortWithHostNames[];
   healthCheckPort: number;
   healthCheckPath: string;
   projectHostPath: string;
@@ -18,13 +20,14 @@ export type ApplicationContainerOptions = {
   aptCacheDir?: string;
 };
 
-export class ApplicationContainer extends GenericContainer { 
-  
+export class ApplicationContainer extends GenericContainer {
+
   private bindMountedDirs: BindMount[] = [];
-  
+
   constructor(
     {
       image = `ghcr.io/guardian/end-to-end-testing/application:${process.env.APPLICATION_IMAGE_TAG}`,
+      name,
       exposedPorts,
       healthCheckPort,
       healthCheckPath,
@@ -57,7 +60,8 @@ export class ApplicationContainer extends GenericContainer {
       }
     }
 
-    this.withExposedPorts(...exposedPorts)
+    this.withName(name)
+      .withExposedPorts(...exposedPorts.map(p => p.port))
       // Allows for compiling the application on first start.
       .withStartupTimeout(10 * 60 * 1000)
       .withWorkingDir(projectContainerPath)
@@ -69,6 +73,7 @@ export class ApplicationContainer extends GenericContainer {
           ])
         )
       )
+      .withLabels(this.routeLabels(exposedPorts))
       .withWaitStrategy(
         Wait.forHttp(healthCheckPath, healthCheckPort).forStatusCode(200),
       )
@@ -81,10 +86,31 @@ export class ApplicationContainer extends GenericContainer {
           target: `${containerCaRootPath}/rootCA.pem`,
         }
       ]);
-    }  
+    }
   }
 
   public withBindMounts(bindMounts: BindMount[]): this {
     return super.withBindMounts(bindMounts.concat(this.bindMountedDirs));
+  }
+
+  private routeLabels(exposedPorts: ExposedPortWithHostNames[]): Record<string, string> {
+    const namedPorts = exposedPorts.filter(p => p.hostNames && p.hostNames.length > 0);
+    const namedPortsWithAliases = exposedPorts.filter(p => p.hostNames && p.hostNames.length > 1);
+    const metadataLabels: Record<string, string> = namedPorts.length > 0 ? {
+      'devcontainer.metadata': JSON.stringify([{
+        forwardPorts: namedPorts.map(p => getContainerPort(p.port)),
+        portsAttributes: Object.fromEntries(
+          namedPorts.map(p => [getContainerPort(p.port), { label: p.hostNames![0] }]),
+        ),
+      }]),
+    } : {};
+    const aliasLabels: Record<string, string> = Object.fromEntries(
+      namedPortsWithAliases.map(p => [`chekov.aliases.${getContainerPort(p.port)}`, p.hostNames!.slice(1).join(",")]),
+    );
+
+    return {
+      ...metadataLabels,
+      ...aliasLabels,
+    };
   }
 }
