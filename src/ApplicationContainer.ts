@@ -1,6 +1,7 @@
 import { GenericContainer, PortWithOptionalBinding, getContainerPort, Wait } from "testcontainers";
 import { BindMount } from "testcontainers/build/types";
 import { posix } from "node:path";
+import { defaultApplicationImage } from "./BaseImages";
 
 export type ExposedPortWithHostNames = { port: PortWithOptionalBinding; hostNames?: string[] };
 
@@ -26,7 +27,7 @@ export class ApplicationContainer extends GenericContainer {
 
   constructor(
     {
-      image = `ghcr.io/guardian/end-to-end-testing/application:${process.env.APPLICATION_IMAGE_TAG}`,
+      image = defaultApplicationImage(),
       name,
       exposedPorts,
       healthCheckPort,
@@ -105,7 +106,7 @@ export class ApplicationContainer extends GenericContainer {
       }]),
     } : {};
     const aliasLabels: Record<string, string> = Object.fromEntries(
-      namedPortsWithAliases.map(p => [`chekov.aliases.${getContainerPort(p.port)}`, p.hostNames!.slice(1).join(",")]),
+      namedPortsWithAliases.map(p => [`chekov.aliases.${getContainerPort(p.port)}`, p.hostNames!.join(",")]),
     );
 
     return {
