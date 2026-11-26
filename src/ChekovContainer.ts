@@ -14,12 +14,13 @@ export class ChekovContainer extends EndToEndTestContainer {
   constructor({
     image = DEFAULT_CHEKOV_IMAGE,
     name,
+    network,
     hostnames,
     baseDomain,
     mkcertRootCertDir,
     logsDir
   }: ChekovContainerOptions) {
-    super({ image, name });
+    super({ image, name, network });
     const containerMkCertDir = "/etc/nginx/mkcert";
     this.withDefaultBindMounts([
         { source: "/var/run/docker.sock", target: "/var/run/docker.sock", mode: "ro" },
@@ -38,9 +39,6 @@ export class ChekovContainer extends EndToEndTestContainer {
         });
     }
     this.withExtraHosts([{ host: "host.docker.internal", ipAddress: "host-gateway" }])
-        .withLabels({
-            "chekov.aliases": hostnames?.join(",") ?? ""
-        })
         .withEnvironment({
             BASE_DOMAIN: baseDomain,
             DOCKER_SOCKET: "/var/run/docker.sock",
@@ -51,7 +49,7 @@ export class ChekovContainer extends EndToEndTestContainer {
             LOCAL_CA_KEY: `${containerMkCertDir}/rootCA-key.pem`,
             DEBOUNCE_MS: "500",
         })
-        .withExposedPorts( 
+        .withExposedPorts(
             { container: 80, host: 80 },
             { container: 443, host: 443 },
         )

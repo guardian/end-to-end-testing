@@ -18,7 +18,7 @@ export interface ApplicationContainerOptions extends EndToEndTestContainerOption
   ivyCacheDir?: string;
   npmCacheDir?: string;
   aptCacheDir?: string;
-};
+}
 
 export class ApplicationContainer extends EndToEndTestContainer {
 
@@ -26,6 +26,7 @@ export class ApplicationContainer extends EndToEndTestContainer {
     {
       image = defaultApplicationImage(),
       name,
+      network,
       exposedPorts,
       healthCheckPort,
       healthCheckPath,
@@ -40,7 +41,7 @@ export class ApplicationContainer extends EndToEndTestContainer {
     }: ApplicationContainerOptions,
   ) {
     const containerCaRootPath = "/etc/local-ca";
-    super({ image, name });
+    super({ image, name, network });
     const cacheMounts = [
       [projectHostPath, projectContainerPath],
       [coursierCacheDir, "/root/.cache/coursier/v1"],

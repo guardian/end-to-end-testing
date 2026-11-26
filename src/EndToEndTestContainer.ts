@@ -1,24 +1,26 @@
-import { GenericContainer } from "testcontainers";
+import { GenericContainer, StartedNetwork } from "testcontainers";
 import { BindMount } from "testcontainers/build/types";
 
 export interface EndToEndTestContainerOptions {
   image?: string;
   name: string;
-};
+  network: StartedNetwork;
+}
 
 export abstract class EndToEndTestContainer extends GenericContainer {
 
   protected bindMountedDirs: BindMount[] = [];
 
   protected constructor(
-    { image, name }: EndToEndTestContainerOptions
+    { image, name, network }: EndToEndTestContainerOptions
   ) {
     if (!image || !image.trim()) {
-      throw new Error("A published application image reference is required");
+      throw new Error(`A published image reference is required for ${name}`);
     }
 
     super(image);
-    this.withName(name);
+    this.withName(name)
+      .withNetwork(network);
   }
 
   protected withDefaultBindMounts(bindMounts: BindMount[]): this {

@@ -13,17 +13,18 @@ export class MockApiContainer extends EndToEndTestContainer {
   constructor({
     image = DEFAULT_MOCK_API_IMAGE,
     name,
+    network,
     fixtureDir,
     hostnames,
     templating
   }: MockApiContainerOptions) {
-    if (hostnames.length === 0) {
-      throw new Error("At least one hostname is required");
+    if (hostnames.length === 0 || hostnames.some((hostname) => !hostname.trim())) {
+      throw new Error("At least one hostname is required and none may be blank");
     }
 
     const containerWiremockConfigDir = "/wiremock-root";
     const containerPort = 80;
-    super({ image, name });
+    super({ image, name, network });
 
     this.withDefaultBindMounts([{
         source: fixtureDir,

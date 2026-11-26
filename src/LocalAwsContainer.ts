@@ -12,6 +12,7 @@ export class LocalAwsContainer extends EndToEndTestContainer {
   constructor({
     image = DEFAULT_LOCAL_AWS_IMAGE,
     name,
+    network,
     hostname,
     containerPort
   }: LocalAwsContainerOptions) {
@@ -19,11 +20,11 @@ export class LocalAwsContainer extends EndToEndTestContainer {
       throw new Error("A hostname is required");
     }
 
-    super({ image, name });
+    super({ image, name, network });
     this.withLabels({
           "devcontainer.hostname": hostname,
           "devcontainer.application.port": String(containerPort),
-          "chekov.aliases": `${hostname}, s3.${hostname}, *.s3.${hostname}`
+          "chekov.aliases": `${hostname},s3.${hostname},*.s3.${hostname}`
       })
       .withEnvironment({
           AWS_DEFAULT_REGION: "eu-west-1",
