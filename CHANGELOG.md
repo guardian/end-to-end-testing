@@ -1,5 +1,11 @@
 # @guardian/end-to-end-testing
 
+## 0.3.0
+
+### Minor Changes
+
+- 5e9c20a: Support more options in ApplicationContainer
+
 ## 0.2.0
 
 ### Minor Changes
