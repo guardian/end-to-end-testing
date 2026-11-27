@@ -1,30 +1,33 @@
-import { GenericContainer, PortWithOptionalBinding, Wait } from "testcontainers";
+import { PortWithOptionalBinding, getContainerPort, Wait } from "testcontainers";
 import { BindMount } from "testcontainers/build/types";
 import { posix } from "node:path";
+import { defaultApplicationImage } from "./BaseImages";
+import { EndToEndTestContainer, EndToEndTestContainerOptions } from "./EndToEndTestContainer";
 
-export type ApplicationContainerOptions = {
-  image?: string;
-  name: string;
-  exposedPorts: PortWithOptionalBinding[];
+export type ExposedPortWithHostNames = { port: PortWithOptionalBinding; hostNames?: string[] };
+
+export interface ApplicationContainerOptions extends EndToEndTestContainerOptions {
+  exposedPorts: ExposedPortWithHostNames[];
   healthCheckPort: number;
   healthCheckPath: string;
   projectHostPath: string;
   projectExcludePaths?: string[];
   projectContainerPath: string;
   caRootCertFile?: string;
+  baseDomain?: string;
   coursierCacheDir?: string;
   ivyCacheDir?: string;
   npmCacheDir?: string;
   aptCacheDir?: string;
-};
+}
 
-export class ApplicationContainer extends GenericContainer { 
-  
-  private bindMountedDirs: BindMount[] = [];
-  
+export class ApplicationContainer extends EndToEndTestContainer {
+
   constructor(
     {
-      image = `ghcr.io/guardian/end-to-end-testing/application:${process.env.APPLICATION_IMAGE_TAG}`,
+      image = defaultApplicationImage(),
+      name,
+      network,
       exposedPorts,
       healthCheckPort,
       healthCheckPath,
@@ -32,18 +35,15 @@ export class ApplicationContainer extends GenericContainer {
       projectExcludePaths,
       projectContainerPath,
       caRootCertFile,
+      baseDomain,
       coursierCacheDir,
       ivyCacheDir,
       npmCacheDir,
       aptCacheDir
     }: ApplicationContainerOptions,
   ) {
-    if (!image || !image.trim()) {
-      throw new Error("A published application image reference is required");
-    }
-
     const containerCaRootPath = "/etc/local-ca";
-    super(image);
+    super({ image, name, network });
     const cacheMounts = [
       [projectHostPath, projectContainerPath],
       [coursierCacheDir, "/root/.cache/coursier/v1"],
@@ -51,17 +51,18 @@ export class ApplicationContainer extends GenericContainer {
       [npmCacheDir, "/root/.npm/_cacache"],
       [aptCacheDir, "/var/cache/apt/archives"],
     ] as const;
+    const bindMounts: BindMount[] = [];
     for (const [source, target] of cacheMounts) {
       if (source) {
-        this.bindMountedDirs.push({ source, target, mode: "rw" });
+        bindMounts.push({ source, target, mode: "rw" });
       }
     }
 
-    this.withExposedPorts(...exposedPorts)
+    this.withDefaultBindMounts(bindMounts)
+      .withExposedPorts(...exposedPorts.map(p => p.port))
       // Allows for compiling the application on first start.
       .withStartupTimeout(10 * 60 * 1000)
       .withWorkingDir(projectContainerPath)
-      .withBindMounts([])
       .withTmpFs(Object.fromEntries(
           (projectExcludePaths ?? []).map((path) => [
             posix.resolve(projectContainerPath, path),
@@ -69,10 +70,16 @@ export class ApplicationContainer extends GenericContainer {
           ])
         )
       )
+      .withLabels(this.routeLabels(exposedPorts))
       .withWaitStrategy(
         Wait.forHttp(healthCheckPath, healthCheckPort).forStatusCode(200),
       )
       .withEnvironment({"CAROOT": containerCaRootPath});
+
+    if (baseDomain) {
+      this.withExtraHosts([{ host: "host.docker.internal", ipAddress: "host-gateway" }])
+        .withEnvironment({ BASE_DOMAIN: baseDomain });
+    }
 
     if (caRootCertFile) {
       this.withCopyFilesToContainer([
@@ -81,10 +88,27 @@ export class ApplicationContainer extends GenericContainer {
           target: `${containerCaRootPath}/rootCA.pem`,
         }
       ]);
-    }  
+    }
   }
 
-  public withBindMounts(bindMounts: BindMount[]): this {
-    return super.withBindMounts(bindMounts.concat(this.bindMountedDirs));
+  private routeLabels(exposedPorts: ExposedPortWithHostNames[]): Record<string, string> {
+    const namedPorts = exposedPorts.filter(p => p.hostNames && p.hostNames.length > 0);
+    const namedPortsWithAliases = exposedPorts.filter(p => p.hostNames && p.hostNames.length > 1);
+    const metadataLabels: Record<string, string> = namedPorts.length > 0 ? {
+      'devcontainer.metadata': JSON.stringify([{
+        forwardPorts: namedPorts.map(p => getContainerPort(p.port)),
+        portsAttributes: Object.fromEntries(
+          namedPorts.map(p => [getContainerPort(p.port), { label: p.hostNames![0] }]),
+        ),
+      }]),
+    } : {};
+    const aliasLabels: Record<string, string> = Object.fromEntries(
+      namedPortsWithAliases.map(p => [`chekov.aliases.${getContainerPort(p.port)}`, p.hostNames!.join(",")]),
+    );
+
+    return {
+      ...metadataLabels,
+      ...aliasLabels,
+    };
   }
 }

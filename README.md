@@ -142,6 +142,7 @@ along with any backing services the application needs on the network.
 | `projectContainerPath` | Yes | Mount target for the project root and the container's working directory. Must contain `.tool-versions`. |
 | `projectExcludePaths` | No | Container paths, either absolute or relative to `projectContainerPath`, masked with empty tmpfs mounts, so host build output (e.g. `node_modules`, `target`) is not shared with the container. |
 | `caRootCertFile` | No | Host path to a local CA `rootCA.pem`. It is copied into the container and installed with `mkcert -install` at startup. |
+| `baseDomain` | No | Resolves `<baseDomain>` and all its subdomains to the Docker host (`host-gateway`) via a dnsmasq resolver inside the container; other names resolve as usual. |
 | `coursierCacheDir` | No | Host directory bind-mounted at `/root/.cache/coursier/v1`. |
 | `ivyCacheDir` | No | Host directory bind-mounted at `/root/.ivy2/cache`. |
 | `npmCacheDir` | No | Host directory bind-mounted at `/root/.npm/_cacache`. |

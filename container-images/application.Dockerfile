@@ -9,6 +9,7 @@ RUN apt-get update \
     ca-certificates \
     curl \
     bash \
+    dnsmasq-base \
     git \
     make \
     openssl \
