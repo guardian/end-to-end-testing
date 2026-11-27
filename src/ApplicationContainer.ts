@@ -14,6 +14,7 @@ export interface ApplicationContainerOptions extends EndToEndTestContainerOption
   projectExcludePaths?: string[];
   projectContainerPath: string;
   caRootCertFile?: string;
+  baseDomain?: string;
   coursierCacheDir?: string;
   ivyCacheDir?: string;
   npmCacheDir?: string;
@@ -34,6 +35,7 @@ export class ApplicationContainer extends EndToEndTestContainer {
       projectExcludePaths,
       projectContainerPath,
       caRootCertFile,
+      baseDomain,
       coursierCacheDir,
       ivyCacheDir,
       npmCacheDir,
@@ -73,6 +75,11 @@ export class ApplicationContainer extends EndToEndTestContainer {
         Wait.forHttp(healthCheckPath, healthCheckPort).forStatusCode(200),
       )
       .withEnvironment({"CAROOT": containerCaRootPath});
+
+    if (baseDomain) {
+      this.withExtraHosts([{ host: "host.docker.internal", ipAddress: "host-gateway" }])
+        .withEnvironment({ BASE_DOMAIN: baseDomain });
+    }
 
     if (caRootCertFile) {
       this.withCopyFilesToContainer([
